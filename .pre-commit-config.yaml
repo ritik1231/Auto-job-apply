@@ -1,0 +1,53 @@
+repos:
+  # ─── General ────────────────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: ^extension/tsconfig\.json$
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: detect-private-key
+
+  # ─── Python (backend) ────────────────────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        files: ^backend/app/
+        additional_dependencies:
+          - pydantic>=2.7.0
+          - pydantic-settings>=2.3.0
+          - types-python-jose
+        args: ["--config-file=backend/pyproject.toml"]
+
+  # ─── TypeScript / Extension ──────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        files: ^extension/src/
+        types_or: [ts, tsx, javascript, jsx, css, json]
+
+  - repo: local
+    hooks:
+      - id: eslint-extension
+        name: ESLint (extension)
+        language: node
+        entry: bash -c 'cd extension && npm run lint'
+        files: ^extension/src/.*\.(ts|tsx)$
+        pass_filenames: false

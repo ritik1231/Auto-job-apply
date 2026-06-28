@@ -1,0 +1,32 @@
+# Development overrides — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Changes from base:
+#   • Backend source code mounted for hot-reload (no rebuild required)
+#   • Uvicorn --reload flag enabled
+#   • Adminer database browser added on port 8080
+#   • Verbose logging
+
+services:
+
+  backend:
+    # Run migrations then start with hot-reload; ENTRYPOINT (wait-for-db.sh) still runs first.
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
+    environment:
+      LOG_LEVEL: DEBUG
+    volumes:
+      # Mount source so edits are reflected without rebuilding the image.
+      - ./backend:/app
+      # Keep the container's venv — don't let the host override it.
+      - /app/.venv
+
+  # ── Adminer — lightweight DB browser ────────────────────────────────────────
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    depends_on:
+      - db

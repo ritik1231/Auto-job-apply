@@ -1,0 +1,36 @@
+# ─── Version control ────────────────────────────────────────────────────────
+.git
+.gitignore
+
+# ─── Secrets & env files ────────────────────────────────────────────────────
+.env
+.env.local
+secrets/
+
+# ─── Python build artifacts ─────────────────────────────────────────────────
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+dist
+build
+
+# ─── Test / lint artifacts ──────────────────────────────────────────────────
+.pytest_cache
+.mypy_cache
+.ruff_cache
+htmlcov
+.coverage
+
+# ─── Dev-only directories ────────────────────────────────────────────────────
+tests/
+
+# ─── Runtime directories (created fresh inside the container) ───────────────
+storage/
+logs/
+
+# ─── Misc ────────────────────────────────────────────────────────────────────
+*.log
+.DS_Store
