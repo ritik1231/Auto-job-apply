@@ -57,7 +57,7 @@ async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONR
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="AI Job Apply API",
+        title="SmartApply API",
         version=settings.APP_VERSION,
         docs_url="/api/v1/docs",
         redoc_url="/api/v1/redoc",

@@ -28,6 +28,7 @@ class JobExtractionResult(BaseModel):
     employment_type: str | None = None
     seniority: str | None = None
     job_summary: str | None = None
+    required_candidate_info: list[str] = Field(default_factory=list)
 
 
 class ResumeMatchResult(BaseModel):
@@ -44,6 +45,17 @@ class EmailGenerationResult(BaseModel):
 
     subject: str
     body: str
+
+
+class UserProfileInfo(BaseModel):
+    """Candidate profile details used to enrich the generated email."""
+
+    current_ctc: str | None = None
+    expected_ctc: str | None = None
+    notice_period: str | None = None
+    current_location: str | None = None
+    total_experience: str | None = None
+    linkedin_url: str | None = None
 
 
 # ── Interface ─────────────────────────────────────────────────────────────────
@@ -67,4 +79,5 @@ class IAIProvider(ABC):
         resume_text: str,
         match: ResumeMatchResult,
         candidate_name: str = "",
+        profile: "UserProfileInfo | None" = None,
     ) -> EmailGenerationResult: ...

@@ -10,7 +10,7 @@ from app.application.dto.application_dto import ApplicationHistoryItem
 from app.domain.entities.application import ApplicationEntity, ApplicationStatus
 from app.domain.entities.job_post import JobPostEntity
 from app.domain.exceptions import InvalidJobPostError, ResumeNotFoundError
-from app.domain.interfaces.ai_provider import IAIProvider
+from app.domain.interfaces.ai_provider import IAIProvider, UserProfileInfo
 from app.domain.interfaces.repositories import (
     IApplicationRepository,
     IJobPostRepository,
@@ -34,7 +34,11 @@ class ApplicationService:
         self._ai = ai_provider
 
     async def prepare_application(
-        self, user_id: uuid.UUID, job_post_id: uuid.UUID, candidate_name: str = ""
+        self,
+        user_id: uuid.UUID,
+        job_post_id: uuid.UUID,
+        candidate_name: str = "",
+        profile: UserProfileInfo | None = None,
     ) -> ApplicationEntity:
         """Run AI match + email generation; persist and return a draft application."""
         job = await self._job_repo.get_by_id(job_post_id)
@@ -54,7 +58,7 @@ class ApplicationService:
 
         match = await self._ai.analyze_resume_match(job, resume_text)
         email_result = await self._ai.generate_application_email(
-            job, resume_text, match, candidate_name
+            job, resume_text, match, candidate_name, profile
         )
 
         application = await self._app_repo.create(
@@ -92,7 +96,8 @@ class ApplicationService:
     async def list_applications_with_job_info(
         self, user_id: uuid.UUID, *, limit: int = 20, offset: int = 0
     ) -> list[ApplicationHistoryItem]:
-        apps = await self._app_repo.list_for_user(user_id, limit=limit, offset=offset)
+        all_apps = await self._app_repo.list_for_user(user_id, limit=limit, offset=offset)
+        apps = [a for a in all_apps if a.status == ApplicationStatus.SENT]
 
         # Dedupe job IDs then batch-fetch (at most `limit` queries)
         seen_ids: set[uuid.UUID] = set()

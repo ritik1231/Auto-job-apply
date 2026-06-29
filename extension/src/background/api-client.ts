@@ -4,9 +4,11 @@ import type {
   ApplicationHistoryItem,
   ApplicationSendResult,
   JobPost,
+  QuotaInfo,
   Resume,
   ResumeListResponse,
   User,
+  UserProfileUpdate,
 } from "@/shared/types";
 
 const API_BASE =
@@ -106,6 +108,14 @@ class ApiClient {
 
   async getMe(): Promise<User> {
     return this.request<User>("GET", "/auth/me");
+  }
+
+  async updateProfile(data: UserProfileUpdate): Promise<User> {
+    return this.request<User>("PATCH", "/auth/me", data);
+  }
+
+  async getQuota(): Promise<QuotaInfo> {
+    return this.request<QuotaInfo>("GET", "/quota");
   }
 
   // ── Resumes ─────────────────────────────────────────────────────────────────

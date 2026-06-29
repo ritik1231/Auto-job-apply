@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import sqlalchemy as sa
 from sqlalchemy import Boolean, DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,6 +19,14 @@ class User(TimestampedBase):
     gmail_access_token: Mapped[str | None] = mapped_column(Text)
     gmail_refresh_token: Mapped[str | None] = mapped_column(Text)
     gmail_token_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    current_ctc: Mapped[str | None] = mapped_column(String(100))
+    expected_ctc: Mapped[str | None] = mapped_column(String(100))
+    notice_period: Mapped[str | None] = mapped_column(String(100))
+    current_location: Mapped[str | None] = mapped_column(String(255))
+    total_experience: Mapped[str | None] = mapped_column(String(100))
+    linkedin_url: Mapped[str | None] = mapped_column(String(500))
+    daily_quota_override: Mapped[int | None] = mapped_column(sa.Integer(), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"

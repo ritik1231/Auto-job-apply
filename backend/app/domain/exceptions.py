@@ -33,6 +33,11 @@ class ApplicationAlreadySentError(DomainException):
     error_code = "APPLICATION_ALREADY_SENT"
 
 
+class DailyLimitError(DomainException):
+    status_code = 429
+    error_code = "DAILY_LIMIT_REACHED"
+
+
 class InvalidJobPostError(DomainException):
     status_code = 400
     error_code = "INVALID_JOB_POST"

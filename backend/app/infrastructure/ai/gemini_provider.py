@@ -19,6 +19,7 @@ from app.domain.interfaces.ai_provider import (
     IAIProvider,
     JobExtractionResult,
     ResumeMatchResult,
+    UserProfileInfo,
 )
 from app.infrastructure.ai import prompt_loader
 
@@ -67,20 +68,35 @@ class GeminiProvider(IAIProvider):
         resume_text: str,
         match: ResumeMatchResult,
         candidate_name: str = "",
+        profile: UserProfileInfo | None = None,
     ) -> EmailGenerationResult:
         truncated_resume = resume_text[: settings.AI_MAX_RESUME_TOKENS * 4]
+        p = profile or UserProfileInfo()
+        requested = set(job.required_candidate_info)
+        required_info = ", ".join(requested) if requested else "none"
+
+        def _if_requested(key: str, value: str | None) -> str:
+            return (value or "Not specified") if key in requested else "Not specified"
+
         system, user = prompt_loader.render(
-            "email_generation_v1",
+            "email_generation_v2",
             job_title=job.job_title or "the role",
             company=job.company or "",
             recruiter_name=_resolve_recruiter_first_name(job.recruiter_name, job.recruiter_email),
             skills=", ".join(job.skills) if job.skills else "Not specified",
             job_summary=job.job_summary or "Not specified",
+            required_candidate_info=required_info,
             match_score=f"{match.match_score:.0%}",
             matching_skills=", ".join(match.matching_skills) if match.matching_skills else "None",
             missing_skills=", ".join(match.missing_skills) if match.missing_skills else "None",
             resume_text=truncated_resume,
             candidate_name=candidate_name,
+            current_ctc=_if_requested("current_ctc", p.current_ctc),
+            expected_ctc=_if_requested("expected_ctc", p.expected_ctc),
+            notice_period=_if_requested("notice_period", p.notice_period),
+            current_location=_if_requested("current_location", p.current_location),
+            total_experience=_if_requested("total_experience", p.total_experience),
+            linkedin_url=p.linkedin_url or "",
         )
         raw = await self._call_with_retry(system, user)
         return await self._parse_with_retry(

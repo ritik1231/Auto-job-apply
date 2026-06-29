@@ -9,8 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from app.application.services.auth_service import AuthService
-from app.dependencies import get_auth_service, get_current_user
+from app.dependencies import get_auth_service, get_current_user, get_user_repo
 from app.domain.entities.user import UserEntity
+from app.domain.interfaces.repositories import IUserRepository
 
 router = APIRouter()
 
@@ -60,6 +61,21 @@ class UserResponse(BaseModel):
     email: str
     name: str | None
     picture_url: str | None
+    current_ctc: str | None = None
+    expected_ctc: str | None = None
+    notice_period: str | None = None
+    current_location: str | None = None
+    total_experience: str | None = None
+    linkedin_url: str | None = None
+
+
+class UserProfileUpdateRequest(BaseModel):
+    current_ctc: str | None = None
+    expected_ctc: str | None = None
+    notice_period: str | None = None
+    current_location: str | None = None
+    total_experience: str | None = None
+    linkedin_url: str | None = None
 
 
 ExchangeResponse.model_rebuild()
@@ -107,12 +123,7 @@ async def exchange_code(
     return ExchangeResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        user=UserResponse(
-            id=user.id,
-            email=user.email,
-            name=user.name,
-            picture_url=user.picture_url,
-        ),
+        user=_user_response(user),
     )
 
 
@@ -126,17 +137,38 @@ async def refresh_token(
     return TokenResponse(access_token=access_token)
 
 
+def _user_response(user: UserEntity) -> UserResponse:
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        picture_url=user.picture_url,
+        current_ctc=user.current_ctc,
+        expected_ctc=user.expected_ctc,
+        notice_period=user.notice_period,
+        current_location=user.current_location,
+        total_experience=user.total_experience,
+        linkedin_url=user.linkedin_url,
+    )
+
+
 @router.get("/me", response_model=UserResponse)
 async def get_me(
     current_user: UserEntity = Depends(get_current_user),
 ) -> UserResponse:
     """Return the authenticated user's profile."""
-    return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        name=current_user.name,
-        picture_url=current_user.picture_url,
-    )
+    return _user_response(current_user)
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    body: UserProfileUpdateRequest,
+    current_user: UserEntity = Depends(get_current_user),
+    user_repo: IUserRepository = Depends(get_user_repo),
+) -> UserResponse:
+    """Update editable candidate profile fields."""
+    updated = await user_repo.update(current_user.id, **body.model_dump())
+    return _user_response(updated or current_user)
 
 
 @router.post("/logout")

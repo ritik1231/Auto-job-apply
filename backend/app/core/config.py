@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_APPLICATION: str = "10/minute"
     RATE_LIMIT_RESUME_UPLOAD: str = "5/hour"
 
+    # Dynamic daily quota
+    # Total AI budget = requests the shared LLM key can serve per day.
+    # Cap per user = clamp(DAILY_AI_BUDGET // active_users, MIN, MAX).
+    DAILY_AI_BUDGET: int = 4800  # Groq free tier: 14400 req/day ÷ 3 calls/app
+    QUOTA_MAX_PER_USER: int = 20  # never give more than 20/day even with 1 user
+    QUOTA_MIN_PER_USER: int = 3  # always allow at least 3/day
+
     @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
     @classmethod
     def _parse_cors_origins(cls, v: object) -> list[str]:

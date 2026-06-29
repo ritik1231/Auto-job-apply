@@ -21,7 +21,8 @@ Respond with a single JSON object matching exactly this structure (use null for 
   "location": "string or null",
   "employment_type": "string or null (e.g. 'Full-time', 'Contract')",
   "seniority": "string or null (e.g. 'Senior', 'Mid-level', 'Junior')",
-  "job_summary": "string or null (one or two sentence summary of the role)"
+  "job_summary": "string or null (one or two sentence summary of the role)",
+  "required_candidate_info": ["list of strings — only fields the recruiter EXPLICITLY asks candidates to include in their email or application message"]
 }
 
 Rules:
@@ -36,3 +37,4 @@ Rules:
   · The name is inferred from an email address — do NOT split email local parts to guess a name.
   If a qualifying name is found, return the first name only (e.g. "Riya", not "Riya Mishra").
 - All string values must be plain text (no HTML or markdown).
+- required_candidate_info: look for explicit instructions asking applicants to mention or include specific details in their email/message (e.g. "please mention your notice period", "include your CTC", "share your total experience"). Use these canonical values when matched: "total_experience", "notice_period", "current_location", "current_ctc", "expected_ctc". Only include a value if the recruiter explicitly asks for it. Return an empty array [] if no such instructions exist.

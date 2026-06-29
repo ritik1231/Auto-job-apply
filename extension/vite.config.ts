@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url'
 
 const manifest = defineManifest({
   manifest_version: 3,
-  name: 'AI Job Apply',
+  name: 'SmartApply',
   version: '0.1.0',
   description: 'Apply to LinkedIn hiring posts in under 10 seconds with AI.',
   permissions: ['activeTab', 'storage', 'identity'],
@@ -25,7 +25,7 @@ const manifest = defineManifest({
   ],
   action: {
     default_popup: 'src/popup/index.html',
-    default_title: 'AI Job Apply',
+    default_title: 'SmartApply',
   },
 })
 

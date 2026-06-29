@@ -10,6 +10,7 @@ from app.application.services.application_service import ApplicationService
 from app.application.services.auth_service import AuthService
 from app.application.services.email_send_service import EmailSendService
 from app.application.services.job_service import JobService
+from app.application.services.quota_service import QuotaService
 from app.application.services.resume_service import ResumeService
 from app.domain.entities.user import UserEntity
 from app.domain.interfaces.ai_provider import IAIProvider
@@ -122,6 +123,12 @@ async def get_email_send_service(
     storage: IResumeStorage = Depends(get_resume_storage),
 ) -> EmailSendService:
     return EmailSendService(application_repo, job_repo, resume_repo, user_repo, storage)
+
+
+async def get_quota_service(
+    application_repo: IApplicationRepository = Depends(get_application_repo),
+) -> QuotaService:
+    return QuotaService(application_repo)
 
 
 # ── Auth dependency ────────────────────────────────────────────────────────────

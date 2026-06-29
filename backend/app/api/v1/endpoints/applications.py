@@ -16,11 +16,18 @@ from app.application.dto.application_dto import (
 )
 from app.application.services.application_service import ApplicationService
 from app.application.services.email_send_service import EmailSendService
+from app.application.services.quota_service import QuotaService
 from app.core.config import settings
 from app.core.rate_limit import get_user_key, limiter
-from app.dependencies import get_application_service, get_current_user, get_email_send_service
+from app.dependencies import (
+    get_application_service,
+    get_current_user,
+    get_email_send_service,
+    get_quota_service,
+)
 from app.domain.entities.application import ApplicationStatus
 from app.domain.entities.user import UserEntity
+from app.domain.interfaces.ai_provider import UserProfileInfo
 
 router = APIRouter()
 
@@ -58,10 +65,20 @@ async def prepare_application(
     body: ApplicationPrepareRequest,
     current_user: UserEntity = Depends(get_current_user),
     service: ApplicationService = Depends(get_application_service),
+    quota_service: QuotaService = Depends(get_quota_service),
 ) -> ApplicationDraftResponse:
     """Analyse resume against job post and generate a draft application email."""
+    await quota_service.enforce(current_user.id, current_user.daily_quota_override)
+    profile = UserProfileInfo(
+        current_ctc=current_user.current_ctc,
+        expected_ctc=current_user.expected_ctc,
+        notice_period=current_user.notice_period,
+        current_location=current_user.current_location,
+        total_experience=current_user.total_experience,
+        linkedin_url=current_user.linkedin_url,
+    )
     app = await service.prepare_application(
-        current_user.id, body.job_post_id, current_user.name or ""
+        current_user.id, body.job_post_id, current_user.name or "", profile
     )
     return ApplicationDraftResponse(
         id=app.id,

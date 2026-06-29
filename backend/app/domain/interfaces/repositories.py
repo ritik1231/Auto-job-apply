@@ -107,3 +107,13 @@ class IApplicationRepository(ABC):
     async def list_for_user(
         self, user_id: uuid.UUID, *, limit: int = 20, offset: int = 0
     ) -> list[ApplicationEntity]: ...
+
+    @abstractmethod
+    async def count_today_for_user(self, user_id: uuid.UUID) -> int:
+        """Count applications prepared by this user since UTC midnight today."""
+        ...
+
+    @abstractmethod
+    async def count_active_users(self, days: int = 7) -> int:
+        """Count distinct users who prepared at least one application in the last N days."""
+        ...

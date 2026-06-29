@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/popup/hooks/use-auth";
 import ResumePanel from "@/popup/components/ResumePanel";
+import ProfilePanel from "@/popup/components/ProfilePanel";
 import AnalyseFlow from "@/popup/components/AnalyseFlow";
 import HistoryPanel from "@/popup/components/HistoryPanel";
 import { useHistoryStore } from "@/popup/stores/history-store";
@@ -35,7 +36,7 @@ export default function App() {
   if (!isAuthenticated) {
     return (
       <div className="w-[360px] min-h-[240px] bg-white p-5 font-sans">
-        <h1 className="text-xl font-semibold text-gray-900">AI Job Apply</h1>
+        <h1 className="text-xl font-semibold text-gray-900">SmartApply</h1>
         <p className="mt-2 text-sm text-gray-500">
           Sign in with Google to apply to LinkedIn hiring posts in seconds.
         </p>
@@ -54,7 +55,7 @@ export default function App() {
     <div className="w-[360px] bg-white p-5 font-sans">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">AI Job Apply</h1>
+        <h1 className="text-xl font-semibold text-gray-900">SmartApply</h1>
         <button
           onClick={() => void signOut()}
           className="text-xs text-gray-400 hover:text-gray-600"
@@ -69,6 +70,7 @@ export default function App() {
       )}
 
       <ResumePanel />
+      <ProfilePanel />
 
       {/* Tab bar */}
       <div className="mt-5 flex border-b border-gray-200">

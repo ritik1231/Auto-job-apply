@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: ai-job-apply-api
+    name: smartapply-api
     env: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
@@ -33,7 +33,7 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_REDIRECT_URI
-        sync: false                 # e.g. https://ai-job-apply-api.onrender.com/api/v1/auth/google/callback
+        sync: false                 # e.g. https://smartapply-api.onrender.com/api/v1/auth/google/callback
 
       # ── JWT (RS256) ───────────────────────────────────────────────────────────
       # Generate locally then base64-encode (no newlines):

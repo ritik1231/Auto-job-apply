@@ -1,7 +1,7 @@
 import type { FromServiceWorkerMessage } from "@/shared/messages";
 import { extractPost } from "./post-extractor";
 
-console.warn("[AIJobApply] content script loaded on", window.location.hostname);
+console.warn("[SmartApply] content script loaded on", window.location.hostname);
 
 chrome.runtime.onMessage.addListener(
   (message: FromServiceWorkerMessage, _sender, sendResponse) => {

@@ -1,9 +1,10 @@
 """SQLAlchemy implementation of IApplicationRepository."""
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities.application import ApplicationEntity
@@ -51,3 +52,24 @@ class ApplicationRepository(BaseRepository[Application], IApplicationRepository)
             .offset(offset)
         )
         return [ApplicationEntity.model_validate(row) for row in result.scalars().all()]
+
+    async def count_today_for_user(self, user_id: uuid.UUID) -> int:
+        midnight = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        result = await self._session.execute(
+            select(func.count()).where(
+                Application.user_id == user_id,
+                Application.created_at >= midnight,
+            )
+        )
+        return result.scalar_one()
+
+    async def count_active_users(self, days: int = 7) -> int:
+        from datetime import timedelta
+
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        result = await self._session.execute(
+            select(func.count(distinct(Application.user_id))).where(
+                Application.created_at >= cutoff,
+            )
+        )
+        return result.scalar_one()

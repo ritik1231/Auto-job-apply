@@ -9,11 +9,11 @@ import { initiateOAuthFlow } from "./auth-flow";
 import { tokenStorage } from "@/storage/token-storage";
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.warn("[AIJobApply] extension installed");
+  console.warn("[SmartApply] extension installed");
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  console.warn("[AIJobApply] service worker started");
+  console.warn("[SmartApply] service worker started");
 });
 
 // ── Message handler ───────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ function handleExtractPost(sendResponse: (r: WorkerResponse) => void): void {
           });
           return;
         }
-        console.warn("[AIJobApply] extraction result:", response.type);
+        console.warn("[SmartApply] extraction result:", response.type);
         if (response.type === "POST_EXTRACTED") {
           sendResponse({
             type: "POST_EXTRACTED",

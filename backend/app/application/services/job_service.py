@@ -83,6 +83,7 @@ class JobService:
             employment_type=extraction.employment_type,
             seniority=extraction.seniority,
             job_summary=extraction.job_summary,
+            required_candidate_info=extraction.required_candidate_info,
             source_url=source_url,
             source_platform=source_platform,
         )

@@ -36,6 +36,9 @@ class JobPost(Base):
     employment_type: Mapped[str | None] = mapped_column(String(100))
     seniority: Mapped[str | None] = mapped_column(String(100))
     job_summary: Mapped[str | None] = mapped_column(Text)
+    required_candidate_info: Mapped[list] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
     source_url: Mapped[str | None] = mapped_column(Text)
     source_platform: Mapped[str] = mapped_column(
         String(50), nullable=False, server_default="linkedin"

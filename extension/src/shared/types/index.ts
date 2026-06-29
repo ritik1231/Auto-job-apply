@@ -4,9 +4,32 @@ export interface User {
   name: string | null;
   picture_url: string | null;
   gmail_token_expiry?: string | null;
+  current_ctc?: string | null;
+  expected_ctc?: string | null;
+  notice_period?: string | null;
+  current_location?: string | null;
+  total_experience?: string | null;
+  linkedin_url?: string | null;
+}
+
+export interface UserProfileUpdate {
+  current_ctc?: string | null;
+  expected_ctc?: string | null;
+  notice_period?: string | null;
+  current_location?: string | null;
+  total_experience?: string | null;
+  linkedin_url?: string | null;
 }
 
 export type ApplicationStatus = "draft" | "sent" | "failed";
+
+export interface QuotaInfo {
+  cap: number;
+  used: number;
+  remaining: number;
+  active_users: number;
+  resets_in_seconds: number;
+}
 
 export interface JobPost {
   id: string;

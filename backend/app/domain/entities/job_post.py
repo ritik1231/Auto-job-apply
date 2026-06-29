@@ -22,6 +22,7 @@ class JobPostEntity(BaseModel):
     employment_type: str | None
     seniority: str | None
     job_summary: str | None
+    required_candidate_info: list[str] = []
     source_url: str | None
     source_platform: str
     created_at: datetime
