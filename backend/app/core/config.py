@@ -2,7 +2,22 @@ from functools import lru_cache
 from typing import Literal
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic.fields import FieldInfo
+from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
+
+
+class _TolerantEnvSource(EnvSettingsSource):
+    """Fall back to space-splitting when a list field contains a non-JSON string."""
+
+    def decode_complex_value(
+        self, field_name: str, field_info: "FieldInfo", value: object
+    ) -> object:  # type: ignore[override]
+        try:
+            return super().decode_complex_value(field_name, field_info, value)
+        except Exception:
+            if isinstance(value, str) and value.strip():
+                return value.split()
+            return []
 
 
 class Settings(BaseSettings):
@@ -11,8 +26,13 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
-        env_ignore_empty=True,
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls, settings_cls, init_settings, env_settings, dotenv_settings, secrets_settings
+    ):  # type: ignore[override]
+        return (init_settings, _TolerantEnvSource(settings_cls), dotenv_settings, secrets_settings)
 
     # Application
     APP_ENV: Literal["development", "staging", "production"] = "development"
@@ -64,7 +84,7 @@ class Settings(BaseSettings):
     SUPABASE_S3_SECRET_KEY: str | None = None
     SUPABASE_BUCKET_NAME: str = "smartapply-resumes"
 
-    # CORS — must be a JSON array in .env: ["chrome-extension://id", "http://localhost:3000"]
+    # CORS — space-separated string or JSON array: chrome-extension://id http://localhost:3000
     CORS_ALLOWED_ORIGINS: list[str] = []
 
     # Rate Limiting
