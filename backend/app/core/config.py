@@ -54,6 +54,14 @@ class Settings(BaseSettings):
     # File Storage
     RESUME_STORAGE_PATH: str = "./storage/resumes"
     RESUME_MAX_SIZE_MB: int = 5
+    RESUME_STORAGE_BACKEND: str = "local"  # local | supabase
+
+    # Supabase S3-compatible storage
+    SUPABASE_S3_ENDPOINT: str | None = None
+    SUPABASE_S3_REGION: str | None = None
+    SUPABASE_S3_ACCESS_KEY: str | None = None
+    SUPABASE_S3_SECRET_KEY: str | None = None
+    SUPABASE_BUCKET_NAME: str = "smartapply-resumes"
 
     # CORS — must be a JSON array in .env: ["chrome-extension://id", "http://localhost:3000"]
     CORS_ALLOWED_ORIGINS: list[str] = []

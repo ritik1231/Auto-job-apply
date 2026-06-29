@@ -58,11 +58,20 @@ services:
       - key: GEMINI_MODEL
         value: gemini-1.5-flash
 
-      # ── Storage ───────────────────────────────────────────────────────────────
-      # /tmp persists for the life of the process; files are lost on redeploy.
-      # Acceptable for MVP — users re-upload after a deploy.
-      - key: RESUME_STORAGE_PATH
-        value: /tmp/storage/resumes
+      # ── Storage (Supabase S3-compatible) ─────────────────────────────────────
+      # Project Settings → Storage → S3 Connection in Supabase dashboard
+      - key: RESUME_STORAGE_BACKEND
+        value: supabase
+      - key: SUPABASE_S3_ENDPOINT
+        sync: false
+      - key: SUPABASE_S3_REGION
+        sync: false
+      - key: SUPABASE_S3_ACCESS_KEY
+        sync: false
+      - key: SUPABASE_S3_SECRET_KEY
+        sync: false
+      - key: SUPABASE_BUCKET_NAME
+        value: smartapply-resumes
 
       # ── CORS ──────────────────────────────────────────────────────────────────
       # Space-separated: add your Chrome extension's origin after loading unpacked.

@@ -12,6 +12,7 @@ from app.application.services.email_send_service import EmailSendService
 from app.application.services.job_service import JobService
 from app.application.services.quota_service import QuotaService
 from app.application.services.resume_service import ResumeService
+from app.core.config import settings as _settings
 from app.domain.entities.user import UserEntity
 from app.domain.interfaces.ai_provider import IAIProvider
 from app.domain.interfaces.repositories import (
@@ -71,6 +72,10 @@ async def get_application_repo(
 
 
 def get_resume_storage() -> IResumeStorage:
+    if _settings.RESUME_STORAGE_BACKEND == "supabase":
+        from app.infrastructure.storage.supabase_storage import SupabaseResumeStorage
+
+        return SupabaseResumeStorage()
     return LocalResumeStorage()
 
 
