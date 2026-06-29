@@ -50,7 +50,10 @@ async def run_migrations_online() -> None:
         raise RuntimeError(
             "DATABASE_URL is not set. " "Configure it in your .env file before running migrations."
         )
-    engine = create_async_engine(db_url, echo=False)
+    from app.infrastructure.database.session import _build_engine_args
+
+    clean_url, connect_args = _build_engine_args(db_url)
+    engine = create_async_engine(clean_url, echo=False, connect_args=connect_args)
     async with engine.connect() as conn:
         await conn.run_sync(_do_migrations)
     await engine.dispose()
