@@ -30,7 +30,7 @@ class Settings(BaseSettings):
 
     @classmethod
     def settings_customise_sources(
-        cls, settings_cls, init_settings, env_settings, dotenv_settings, secrets_settings
+        cls, settings_cls, init_settings, env_settings, dotenv_settings, secrets_settings, **kwargs
     ):  # type: ignore[override]
         return (init_settings, _TolerantEnvSource(settings_cls), dotenv_settings, secrets_settings)
 
