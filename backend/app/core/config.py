@@ -1,23 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import field_validator
-from pydantic.fields import FieldInfo
-from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
-
-
-class _TolerantEnvSource(EnvSettingsSource):
-    """Fall back to space-splitting when a list field contains a non-JSON string."""
-
-    def decode_complex_value(
-        self, field_name: str, field_info: "FieldInfo", value: object
-    ) -> object:  # type: ignore[override]
-        try:
-            return super().decode_complex_value(field_name, field_info, value)
-        except Exception:
-            if isinstance(value, str) and value.strip():
-                return value.split()
-            return []
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -27,12 +11,6 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
-
-    @classmethod
-    def settings_customise_sources(
-        cls, settings_cls, init_settings, env_settings, dotenv_settings, secrets_settings, **kwargs
-    ):  # type: ignore[override]
-        return (init_settings, _TolerantEnvSource(settings_cls), dotenv_settings, secrets_settings)
 
     # Application
     APP_ENV: Literal["development", "staging", "production"] = "development"
@@ -54,13 +32,10 @@ class Settings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     JWT_PRIVATE_KEY_PATH: str = "./secrets/private.pem"
     JWT_PUBLIC_KEY_PATH: str = "./secrets/public.pem"
-    # Production alternative: base64-encoded PEM strings set as env vars.
-    # Generate: base64 secrets/private.pem | tr -d '\n'
     JWT_PRIVATE_KEY: str | None = None
     JWT_PUBLIC_KEY: str | None = None
 
     # Gmail token encryption
-    # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     GMAIL_TOKEN_ENCRYPTION_KEY: str | None = None
 
     # AI
@@ -84,8 +59,9 @@ class Settings(BaseSettings):
     SUPABASE_S3_SECRET_KEY: str | None = None
     SUPABASE_BUCKET_NAME: str = "smartapply-resumes"
 
-    # CORS — space-separated string or JSON array: chrome-extension://id http://localhost:3000
-    CORS_ALLOWED_ORIGINS: list[str] = []
+    # CORS — raw string, parsed into list by property below
+    # On Render set as: chrome-extension://id1 chrome-extension://id2
+    CORS_ALLOWED_ORIGINS_RAW: str = ""
 
     # Rate Limiting
     RATE_LIMIT_JOB_EXTRACT: str = "20/minute"
@@ -93,20 +69,16 @@ class Settings(BaseSettings):
     RATE_LIMIT_RESUME_UPLOAD: str = "5/hour"
 
     # Dynamic daily quota
-    # Total AI budget = requests the shared LLM key can serve per day.
-    # Cap per user = clamp(DAILY_AI_BUDGET // active_users, MIN, MAX).
-    DAILY_AI_BUDGET: int = 4800  # Groq free tier: 14400 req/day ÷ 3 calls/app
-    QUOTA_MAX_PER_USER: int = 20  # never give more than 20/day even with 1 user
-    QUOTA_MIN_PER_USER: int = 3  # always allow at least 3/day
+    DAILY_AI_BUDGET: int = 4800
+    QUOTA_MAX_PER_USER: int = 20
+    QUOTA_MIN_PER_USER: int = 3
 
-    @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
-    @classmethod
-    def _parse_cors_origins(cls, v: object) -> list[str]:
-        if isinstance(v, list):
-            return v
-        if isinstance(v, str) and v:
-            return v.split()
-        return []
+    @property
+    def cors_allowed_origins(self) -> list[str]:
+        v = self.CORS_ALLOWED_ORIGINS_RAW.strip()
+        if not v:
+            return []
+        return v.split()
 
     @property
     def is_development(self) -> bool:
