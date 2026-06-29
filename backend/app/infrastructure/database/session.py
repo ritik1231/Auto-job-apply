@@ -1,6 +1,7 @@
 """Async SQLAlchemy engine and session factory."""
 
 from collections.abc import AsyncGenerator
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -15,6 +16,17 @@ _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
+def _build_engine_args(url: str) -> tuple[str, dict]:
+    """Strip sslmode/ssl query params and return connect_args for asyncpg."""
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query, keep_blank_values=True)
+    ssl_requested = params.pop("sslmode", None) or params.pop("ssl", None)
+    clean_query = urlencode({k: v[0] for k, v in params.items()})
+    clean_url = urlunparse(parsed._replace(query=clean_query))
+    connect_args = {"ssl": "require"} if ssl_requested else {}
+    return clean_url, connect_args
+
+
 def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
@@ -23,12 +35,14 @@ def get_engine() -> AsyncEngine:
                 "DATABASE_URL is not configured. "
                 "Add it to your .env file before using the database."
             )
+        clean_url, connect_args = _build_engine_args(settings.DATABASE_URL)
         _engine = create_async_engine(
-            settings.DATABASE_URL,
+            clean_url,
             echo=settings.is_development,
             pool_pre_ping=True,
             pool_size=10,
             max_overflow=20,
+            connect_args=connect_args,
         )
     return _engine
 
