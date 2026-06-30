@@ -16,6 +16,7 @@ from app.domain.exceptions import InvalidJobPostError, ResumeNotFoundError
 from app.domain.interfaces.ai_provider import (
     EmailGenerationResult,
     ResumeMatchResult,
+    TokenUsage,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -126,11 +127,15 @@ def _make_service(
     resume_repo.get_active_for_user = AsyncMock(return_value=resume)
 
     ai = MagicMock()
-    ai.analyze_resume_match = AsyncMock(return_value=_match())
-    ai.generate_application_email = AsyncMock(return_value=_email())
+    ai.analyze_resume_match = AsyncMock(return_value=(_match(), TokenUsage()))
+    ai.generate_application_email = AsyncMock(return_value=(_email(), TokenUsage()))
+
+    quota = MagicMock()
+    quota.enforce = AsyncMock(return_value=None)
+    quota.record_usage = AsyncMock(return_value=None)
 
     return (
-        ApplicationService(app_repo, job_repo, resume_repo, ai),
+        ApplicationService(app_repo, job_repo, resume_repo, ai, quota),
         app_repo,
         job_repo,
         resume_repo,
@@ -210,8 +215,11 @@ async def test_prepare_resume_with_no_parsed_text_still_proceeds():
 async def test_prepare_match_score_stored_in_create_call():
     service, app_repo, _, _, ai = _make_service(job=_job(), resume=_resume())
     ai.analyze_resume_match = AsyncMock(
-        return_value=ResumeMatchResult(
-            match_score=0.55, matching_skills=["Python"], missing_skills=["Docker"]
+        return_value=(
+            ResumeMatchResult(
+                match_score=0.55, matching_skills=["Python"], missing_skills=["Docker"]
+            ),
+            TokenUsage(),
         )
     )
     await service.prepare_application(_UID, _JOB_ID)
@@ -258,7 +266,7 @@ async def test_list_applications_delegates_to_repo():
 @pytest.mark.unit
 async def test_history_returns_correct_job_info():
     service, app_repo, job_repo, *_ = _make_service(job=_job(), resume=_resume())
-    app_repo.list_for_user = AsyncMock(return_value=[_app()])
+    app_repo.list_for_user = AsyncMock(return_value=[_app(status=ApplicationStatus.SENT)])
     job_repo.get_by_id = AsyncMock(return_value=_job())
 
     result = await service.list_applications_with_job_info(_UID)
@@ -268,7 +276,7 @@ async def test_history_returns_correct_job_info():
     assert result[0].job_title == "Python Engineer"
     assert result[0].company == "Acme"
     assert result[0].match_score == 0.8
-    assert result[0].status == ApplicationStatus.DRAFT
+    assert result[0].status == ApplicationStatus.SENT
 
 
 @pytest.mark.asyncio
@@ -276,7 +284,7 @@ async def test_history_returns_correct_job_info():
 async def test_history_missing_job_gives_none_title_and_company():
     """If the job row was deleted after the application was created, fields are None."""
     service, app_repo, job_repo, *_ = _make_service(job=_job(), resume=_resume())
-    app_repo.list_for_user = AsyncMock(return_value=[_app()])
+    app_repo.list_for_user = AsyncMock(return_value=[_app(status=ApplicationStatus.SENT)])
     job_repo.get_by_id = AsyncMock(return_value=None)
 
     result = await service.list_applications_with_job_info(_UID)
@@ -291,8 +299,10 @@ async def test_history_missing_job_gives_none_title_and_company():
 async def test_history_deduplicates_job_fetches():
     """Two applications for the same job should trigger only one repo call."""
     service, app_repo, job_repo, *_ = _make_service(job=_job(), resume=_resume())
-    app1 = _app(id=uuid.uuid4())
-    app2 = _app(id=uuid.uuid4())  # same job_post_id (_JOB_ID) by default
+    app1 = _app(id=uuid.uuid4(), status=ApplicationStatus.SENT)
+    app2 = _app(
+        id=uuid.uuid4(), status=ApplicationStatus.SENT
+    )  # same job_post_id (_JOB_ID) by default
     app_repo.list_for_user = AsyncMock(return_value=[app1, app2])
     job_repo.get_by_id = AsyncMock(return_value=_job())
 

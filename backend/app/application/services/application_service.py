@@ -7,6 +7,7 @@ import uuid
 import structlog
 
 from app.application.dto.application_dto import ApplicationHistoryItem
+from app.application.services.quota_service import QuotaService
 from app.domain.entities.application import ApplicationEntity, ApplicationStatus
 from app.domain.entities.job_post import JobPostEntity
 from app.domain.exceptions import InvalidJobPostError, ResumeNotFoundError
@@ -27,11 +28,13 @@ class ApplicationService:
         job_repo: IJobPostRepository,
         resume_repo: IResumeRepository,
         ai_provider: IAIProvider,
+        quota_service: QuotaService,
     ) -> None:
         self._app_repo = application_repo
         self._job_repo = job_repo
         self._resume_repo = resume_repo
         self._ai = ai_provider
+        self._quota = quota_service
 
     async def prepare_application(
         self,
@@ -40,7 +43,6 @@ class ApplicationService:
         candidate_name: str = "",
         profile: UserProfileInfo | None = None,
     ) -> ApplicationEntity:
-        """Run AI match + email generation; persist and return a draft application."""
         job = await self._job_repo.get_by_id(job_post_id)
         if job is None or job.user_id != user_id:
             raise InvalidJobPostError("Job post not found")
@@ -52,12 +54,13 @@ class ApplicationService:
         resume_text = resume.parsed_text or ""
         if not resume_text:
             logger.warning(
-                "resume has no parsed text; AI match quality will be low",
-                resume_id=str(resume.id),
+                "resume has no parsed text; AI match quality will be low", resume_id=str(resume.id)
             )
 
-        match = await self._ai.analyze_resume_match(job, resume_text)
-        email_result = await self._ai.generate_application_email(
+        await self._quota.enforce(user_id)
+
+        match, usage1 = await self._ai.analyze_resume_match(job, resume_text)
+        email_result, usage2 = await self._ai.generate_application_email(
             job, resume_text, match, candidate_name, profile
         )
 
@@ -72,11 +75,19 @@ class ApplicationService:
             generated_email=email_result.body,
             status=ApplicationStatus.DRAFT,
         )
+
+        total_input = usage1.input_tokens + usage2.input_tokens
+        total_output = usage1.output_tokens + usage2.output_tokens
+        await self._quota.record_usage(user_id, total_input, total_output)
+
         logger.info(
             "application draft prepared",
             user_id=str(user_id),
             application_id=str(application.id),
             match_score=match.match_score,
+            provider=usage1.provider,
+            input_tokens=total_input,
+            output_tokens=total_output,
         )
         return application
 
@@ -99,7 +110,6 @@ class ApplicationService:
         all_apps = await self._app_repo.list_for_user(user_id, limit=limit, offset=offset)
         apps = [a for a in all_apps if a.status == ApplicationStatus.SENT]
 
-        # Dedupe job IDs then batch-fetch (at most `limit` queries)
         seen_ids: set[uuid.UUID] = set()
         job_ids: list[uuid.UUID] = []
         for app in apps:

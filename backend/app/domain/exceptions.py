@@ -65,6 +65,17 @@ class AIProviderError(InfrastructureException):
     error_code = "AI_PROVIDER_ERROR"
 
 
+class AIRateLimitError(AIProviderError):
+    """Provider returned 429. limit_type: 'rpm' → 60 s cooldown; 'rpd' → until midnight UTC."""
+
+    status_code = 503
+    error_code = "AI_RATE_LIMIT"
+
+    def __init__(self, message: str, limit_type: str = "rpm") -> None:
+        super().__init__(message)
+        self.limit_type = limit_type  # "rpm" | "rpd"
+
+
 class AIResponseParseError(InfrastructureException):
     status_code = 503
     error_code = "AI_RESPONSE_PARSE_ERROR"

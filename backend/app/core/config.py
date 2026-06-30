@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     APP_ENV: Literal["development", "staging", "production"] = "development"
     APP_VERSION: str = "1.0.0"
     LOG_LEVEL: str = "INFO"
-    SECRET_KEY: str  # required — no default; fails fast if absent
+    SECRET_KEY: str
 
-    # Database (required from Phase 4 onward)
+    # Database
     DATABASE_URL: str | None = None
 
     # Google OAuth
@@ -38,19 +38,23 @@ class Settings(BaseSettings):
     # Gmail token encryption
     GMAIL_TOKEN_ENCRYPTION_KEY: str | None = None
 
-    # AI
-    AI_PROVIDER: str = "gemini"  # gemini | groq
+    # AI — provider keys (at least one required)
     GEMINI_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     GROQ_API_KEY: str | None = None
+    GROQ_API_KEY_2: str | None = None
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     AI_MAX_RESUME_TOKENS: int = 4000
     AI_MAX_JOB_POST_TOKENS: int = 2000
 
+    # Per-user daily limits (enforced before AI calls; tokens used for internal billing tracking)
+    USER_DAILY_TOKEN_LIMIT: int = 50000  # total input+output tokens per user per day
+    USER_DAILY_REQUEST_LIMIT: int = 30  # max analysis flows per user per day
+
     # File Storage
     RESUME_STORAGE_PATH: str = "./storage/resumes"
     RESUME_MAX_SIZE_MB: int = 5
-    RESUME_STORAGE_BACKEND: str = "local"  # local | supabase
+    RESUME_STORAGE_BACKEND: str = "local"
 
     # Supabase S3-compatible storage
     SUPABASE_S3_ENDPOINT: str | None = None
@@ -59,19 +63,13 @@ class Settings(BaseSettings):
     SUPABASE_S3_SECRET_KEY: str | None = None
     SUPABASE_BUCKET_NAME: str = "smartapply-resumes"
 
-    # CORS — raw string, parsed into list by property below
-    # On Render set as: chrome-extension://id1 chrome-extension://id2
+    # CORS
     CORS_ALLOWED_ORIGINS_RAW: str = ""
 
-    # Rate Limiting
+    # Rate Limiting (API-level, separate from user daily limits)
     RATE_LIMIT_JOB_EXTRACT: str = "20/minute"
     RATE_LIMIT_APPLICATION: str = "10/minute"
     RATE_LIMIT_RESUME_UPLOAD: str = "5/hour"
-
-    # Dynamic daily quota
-    DAILY_AI_BUDGET: int = 4800
-    QUOTA_MAX_PER_USER: int = 20
-    QUOTA_MIN_PER_USER: int = 3
 
     @property
     def cors_allowed_origins(self) -> list[str]:

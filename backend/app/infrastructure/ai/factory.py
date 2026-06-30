@@ -1,4 +1,4 @@
-"""AI provider factory — returns the configured IAIProvider implementation."""
+"""AI provider factory — builds a ProviderPool from configured keys."""
 
 from __future__ import annotations
 
@@ -7,28 +7,43 @@ from app.domain.interfaces.ai_provider import IAIProvider
 
 
 def get_ai_provider() -> IAIProvider:
-    provider_name = getattr(settings, "AI_PROVIDER", "gemini")
+    from app.infrastructure.ai.provider_pool import ProviderPool
 
-    if provider_name == "gemini":
-        from app.infrastructure.ai.gemini_provider import GeminiProvider
+    providers: list[tuple[str, IAIProvider]] = []
 
-        if not settings.GEMINI_API_KEY:
-            raise RuntimeError("GEMINI_API_KEY is not set. Add it to your .env file.")
-        return GeminiProvider(
-            api_key=settings.GEMINI_API_KEY,
-            model_name=settings.GEMINI_MODEL,
-        )
-
-    if provider_name == "groq":
+    if settings.GROQ_API_KEY:
         from app.infrastructure.ai.groq_provider import GroqProvider
 
-        if not settings.GROQ_API_KEY:
-            raise RuntimeError("GROQ_API_KEY is not set. Add it to your .env file.")
-        return GroqProvider(
-            api_key=settings.GROQ_API_KEY,
-            model_name=settings.GROQ_MODEL,
+        providers.append(
+            (
+                "groq_key1",
+                GroqProvider(api_key=settings.GROQ_API_KEY, model_name=settings.GROQ_MODEL),
+            )
         )
 
-    raise NotImplementedError(
-        f"AI provider '{provider_name}' is not implemented. " "Supported: 'gemini', 'groq'"
-    )
+    if settings.GROQ_API_KEY_2:
+        from app.infrastructure.ai.groq_provider import GroqProvider
+
+        providers.append(
+            (
+                "groq_key2",
+                GroqProvider(api_key=settings.GROQ_API_KEY_2, model_name=settings.GROQ_MODEL),
+            )
+        )
+
+    if settings.GEMINI_API_KEY:
+        from app.infrastructure.ai.gemini_provider import GeminiProvider
+
+        providers.append(
+            (
+                "gemini",
+                GeminiProvider(api_key=settings.GEMINI_API_KEY, model_name=settings.GEMINI_MODEL),
+            )
+        )
+
+    if not providers:
+        raise RuntimeError(
+            "No AI provider keys configured. Set at least one of: GROQ_API_KEY, GROQ_API_KEY_2, GEMINI_API_KEY."
+        )
+
+    return ProviderPool(providers)

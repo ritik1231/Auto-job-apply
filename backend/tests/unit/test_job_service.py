@@ -11,7 +11,7 @@ import pytest
 from app.application.services.job_service import JobService, compute_content_hash
 from app.domain.entities.job_post import JobPostEntity
 from app.domain.exceptions import InvalidJobPostError
-from app.domain.interfaces.ai_provider import JobExtractionResult
+from app.domain.interfaces.ai_provider import JobExtractionResult, TokenUsage
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -51,16 +51,24 @@ def _make_service(
 
     ai = MagicMock()
     ai.extract_job_details = AsyncMock(
-        return_value=extraction_result
-        or JobExtractionResult(
-            company="Acme",
-            recruiter_email="bob@acme.com",
-            job_title="Engineer",
-            skills=["Python"],
-            responsibilities=[],
+        return_value=(
+            extraction_result
+            or JobExtractionResult(
+                company="Acme",
+                recruiter_email="bob@acme.com",
+                job_title="Engineer",
+                skills=["Python"],
+                responsibilities=[],
+            ),
+            TokenUsage(),
         )
     )
-    return JobService(repo, ai), repo, ai
+
+    quota = MagicMock()
+    quota.enforce = AsyncMock(return_value=None)
+    quota.record_usage = AsyncMock(return_value=None)
+
+    return JobService(repo, ai, quota), repo, ai
 
 
 # ── Content hashing ───────────────────────────────────────────────────────────

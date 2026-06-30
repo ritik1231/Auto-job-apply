@@ -11,7 +11,7 @@ const manifest = defineManifest({
   permissions: ['activeTab', 'storage', 'identity'],
   host_permissions: [
     'https://www.linkedin.com/*',
-    'http://localhost:8000/*', // dev API — replace with production URL before shipping
+    'https://smartapply-api.onrender.com/*',
   ],
   background: {
     service_worker: 'src/background/service-worker.ts',

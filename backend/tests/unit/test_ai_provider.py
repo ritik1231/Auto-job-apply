@@ -163,10 +163,14 @@ def test_parse_email_generation_valid(provider):
 async def test_call_with_retry_succeeds_first_attempt(provider):
     mock_response = MagicMock()
     mock_response.text = '{"company": "X"}'
+    mock_response.usage_metadata.prompt_token_count = 10
+    mock_response.usage_metadata.candidates_token_count = 5
     provider._client.aio.models.generate_content = AsyncMock(return_value=mock_response)
 
-    result = await provider._call_with_retry("system", "user")
-    assert result == '{"company": "X"}'
+    text, inp, out = await provider._call_with_retry("system", "user")
+    assert text == '{"company": "X"}'
+    assert inp == 10
+    assert out == 5
     assert provider._client.aio.models.generate_content.call_count == 1
 
 
@@ -175,13 +179,15 @@ async def test_call_with_retry_succeeds_first_attempt(provider):
 async def test_call_with_retry_retries_on_exception(provider):
     mock_response = MagicMock()
     mock_response.text = '{"ok": true}'
+    mock_response.usage_metadata.prompt_token_count = 0
+    mock_response.usage_metadata.candidates_token_count = 0
     provider._client.aio.models.generate_content = AsyncMock(
         side_effect=[RuntimeError("network"), RuntimeError("timeout"), mock_response]
     )
 
     with patch("asyncio.sleep", new_callable=AsyncMock):
-        result = await provider._call_with_retry("system", "user")
-    assert result == '{"ok": true}'
+        text, inp, out = await provider._call_with_retry("system", "user")
+    assert text == '{"ok": true}'
     assert provider._client.aio.models.generate_content.call_count == 3
 
 

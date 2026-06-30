@@ -1,12 +1,9 @@
-"""Repository interfaces — defines WHAT operations exist, not HOW.
-
-SQLAlchemy implementations live in app/infrastructure/database/repositories/.
-"""
+"""Repository interfaces — defines WHAT operations exist, not HOW."""
 
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 from app.domain.entities.application import ApplicationEntity
 from app.domain.entities.job_post import JobPostEntity
@@ -16,11 +13,22 @@ from app.domain.entities.user import UserEntity
 
 @dataclass
 class GmailTokenData:
-    """Encrypted Gmail OAuth credentials fetched from the database."""
-
     access_token_enc: str | None
     refresh_token_enc: str | None
     expiry: datetime | None
+
+
+@dataclass
+class UserDailyUsageData:
+    """Snapshot of a user's accumulated usage for one calendar day."""
+
+    input_tokens: int
+    output_tokens: int
+    request_count: int
+
+    @property
+    def total_tokens(self) -> int:
+        return self.input_tokens + self.output_tokens
 
 
 class IUserRepository(ABC):
@@ -65,9 +73,7 @@ class IResumeRepository(ABC):
     async def deactivate_all_for_user(self, user_id: uuid.UUID) -> None: ...
 
     @abstractmethod
-    async def soft_delete(self, id: uuid.UUID) -> None:
-        """Mark a resume inactive (does not remove the stored file)."""
-        ...
+    async def soft_delete(self, id: uuid.UUID) -> None: ...
 
 
 class IJobPostRepository(ABC):
@@ -109,11 +115,25 @@ class IApplicationRepository(ABC):
     ) -> list[ApplicationEntity]: ...
 
     @abstractmethod
-    async def count_today_for_user(self, user_id: uuid.UUID) -> int:
-        """Count applications prepared by this user since UTC midnight today."""
+    async def count_today_for_user(self, user_id: uuid.UUID) -> int: ...
+
+    @abstractmethod
+    async def count_active_users(self, days: int = 7) -> int: ...
+
+
+class IUserDailyUsageRepository(ABC):
+    @abstractmethod
+    async def get_today(self, user_id: uuid.UUID, today: date) -> UserDailyUsageData | None:
+        """Return usage row for (user_id, today), or None if no calls yet today."""
         ...
 
     @abstractmethod
-    async def count_active_users(self, days: int = 7) -> int:
-        """Count distinct users who prepared at least one application in the last N days."""
+    async def upsert(
+        self,
+        user_id: uuid.UUID,
+        today: date,
+        input_tokens: int,
+        output_tokens: int,
+    ) -> None:
+        """Atomically accumulate tokens and increment request_count by 1."""
         ...

@@ -8,6 +8,7 @@ import uuid
 
 import structlog
 
+from app.application.services.quota_service import QuotaService
 from app.core.sanitization import sanitize_post_text
 from app.domain.entities.job_post import JobPostEntity
 from app.domain.exceptions import InvalidJobPostError
@@ -16,11 +17,10 @@ from app.domain.interfaces.repositories import IJobPostRepository
 
 logger = structlog.get_logger(__name__)
 
-_MIN_POST_LENGTH = 50  # characters — below this we can't extract anything meaningful
+_MIN_POST_LENGTH = 50
 
 
 def _normalize(text: str) -> str:
-    """Collapse whitespace and lowercase for stable hashing."""
     return re.sub(r"\s+", " ", text.strip()).lower()
 
 
@@ -33,9 +33,11 @@ class JobService:
         self,
         job_repo: IJobPostRepository,
         ai_provider: IAIProvider,
+        quota_service: QuotaService,
     ) -> None:
         self._repo = job_repo
         self._ai = ai_provider
+        self._quota = quota_service
 
     async def process_post(
         self,
@@ -66,7 +68,9 @@ class JobService:
             )
             return cached, True
 
-        extraction = await self._ai.extract_job_details(clean_content)
+        await self._quota.enforce(user_id)
+
+        extraction, usage = await self._ai.extract_job_details(clean_content)
 
         job = await self._repo.create(
             user_id=user_id,
@@ -87,11 +91,17 @@ class JobService:
             source_url=source_url,
             source_platform=source_platform,
         )
+
+        await self._quota.record_usage(user_id, usage.input_tokens, usage.output_tokens)
+
         logger.info(
             "job post extracted and persisted",
             user_id=str(user_id),
             job_post_id=str(job.id),
             company=job.company,
+            provider=usage.provider,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
         )
         return job, False
 

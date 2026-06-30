@@ -19,12 +19,16 @@ from app.domain.interfaces.repositories import (
     IApplicationRepository,
     IJobPostRepository,
     IResumeRepository,
+    IUserDailyUsageRepository,
     IUserRepository,
 )
 from app.domain.interfaces.storage import IResumeStorage
 from app.infrastructure.database.repositories.application_repository import ApplicationRepository
 from app.infrastructure.database.repositories.job_post_repository import JobPostRepository
 from app.infrastructure.database.repositories.resume_repository import ResumeRepository
+from app.infrastructure.database.repositories.user_daily_usage_repository import (
+    UserDailyUsageRepository,
+)
 from app.infrastructure.database.repositories.user_repository import UserRepository
 from app.infrastructure.database.session import get_db_session
 from app.infrastructure.storage.local_storage import LocalResumeStorage
@@ -68,6 +72,12 @@ async def get_application_repo(
     return ApplicationRepository(session)
 
 
+async def get_usage_repo(
+    session: AsyncSession = Depends(get_session),
+) -> IUserDailyUsageRepository:
+    return UserDailyUsageRepository(session)
+
+
 # ── Storage factories ──────────────────────────────────────────────────────────
 
 
@@ -104,11 +114,18 @@ async def get_resume_service(
     return ResumeService(resume_repo, storage)
 
 
+async def get_quota_service(
+    usage_repo: IUserDailyUsageRepository = Depends(get_usage_repo),
+) -> QuotaService:
+    return QuotaService(usage_repo)
+
+
 async def get_job_service(
     job_repo: IJobPostRepository = Depends(get_job_repo),
     ai_provider: IAIProvider = Depends(get_ai_provider),
+    quota_service: QuotaService = Depends(get_quota_service),
 ) -> JobService:
-    return JobService(job_repo, ai_provider)
+    return JobService(job_repo, ai_provider, quota_service)
 
 
 async def get_application_service(
@@ -116,8 +133,9 @@ async def get_application_service(
     job_repo: IJobPostRepository = Depends(get_job_repo),
     resume_repo: IResumeRepository = Depends(get_resume_repo),
     ai_provider: IAIProvider = Depends(get_ai_provider),
+    quota_service: QuotaService = Depends(get_quota_service),
 ) -> ApplicationService:
-    return ApplicationService(application_repo, job_repo, resume_repo, ai_provider)
+    return ApplicationService(application_repo, job_repo, resume_repo, ai_provider, quota_service)
 
 
 async def get_email_send_service(
@@ -128,12 +146,6 @@ async def get_email_send_service(
     storage: IResumeStorage = Depends(get_resume_storage),
 ) -> EmailSendService:
     return EmailSendService(application_repo, job_repo, resume_repo, user_repo, storage)
-
-
-async def get_quota_service(
-    application_repo: IApplicationRepository = Depends(get_application_repo),
-) -> QuotaService:
-    return QuotaService(application_repo)
 
 
 # ── Auth dependency ────────────────────────────────────────────────────────────

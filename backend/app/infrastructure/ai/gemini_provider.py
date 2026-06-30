@@ -13,12 +13,13 @@ from pydantic import BaseModel, ValidationError
 
 from app.core.config import settings
 from app.domain.entities.job_post import JobPostEntity
-from app.domain.exceptions import AIProviderError, AIResponseParseError
+from app.domain.exceptions import AIProviderError, AIRateLimitError, AIResponseParseError
 from app.domain.interfaces.ai_provider import (
     EmailGenerationResult,
     IAIProvider,
     JobExtractionResult,
     ResumeMatchResult,
+    TokenUsage,
     UserProfileInfo,
 )
 from app.infrastructure.ai import prompt_loader
@@ -26,10 +27,20 @@ from app.infrastructure.ai import prompt_loader
 logger = structlog.get_logger(__name__)
 
 _RETRY_ATTEMPTS = 3
-_RETRY_BASE_DELAY = 1.0  # seconds; doubles each retry
+_RETRY_BASE_DELAY = 1.0
 _JSON_MIME = "application/json"
 
 M = TypeVar("M", bound=BaseModel)
+
+
+def _is_rate_limit(exc: Exception) -> bool:
+    s = str(exc).lower()
+    return "429" in s or "resource_exhausted" in s or "rate limit" in s or "quota" in s
+
+
+def _rate_limit_type(exc: Exception) -> str:
+    s = str(exc).lower()
+    return "rpd" if ("day" in s or "daily" in s or "per day" in s) else "rpm"
 
 
 class GeminiProvider(IAIProvider):
@@ -37,17 +48,20 @@ class GeminiProvider(IAIProvider):
         self._client = genai.Client(api_key=api_key)
         self._model = model_name
 
-    # ── Public interface ────────────────────────────────────────────────────────
-
-    async def extract_job_details(self, post_text: str) -> JobExtractionResult:
+    async def extract_job_details(self, post_text: str) -> tuple[JobExtractionResult, TokenUsage]:
         truncated = post_text[: settings.AI_MAX_JOB_POST_TOKENS * 4]
         system, user = prompt_loader.render("job_extraction_v1", post_text=truncated)
-        raw = await self._call_with_retry(system, user)
-        return await self._parse_with_retry(
-            JobExtractionResult, raw, system, user, label="job_extraction"
+        text, inp, out = await self._call_with_retry(system, user)
+        result = await self._parse_with_retry(
+            JobExtractionResult, text, system, user, label="job_extraction"
+        )
+        return result, TokenUsage(
+            input_tokens=inp, output_tokens=out, provider="", model=self._model
         )
 
-    async def analyze_resume_match(self, job: JobPostEntity, resume_text: str) -> ResumeMatchResult:
+    async def analyze_resume_match(
+        self, job: JobPostEntity, resume_text: str
+    ) -> tuple[ResumeMatchResult, TokenUsage]:
         truncated_resume = resume_text[: settings.AI_MAX_RESUME_TOKENS * 4]
         system, user = prompt_loader.render(
             "resume_match_v1",
@@ -57,9 +71,12 @@ class GeminiProvider(IAIProvider):
             job_summary=job.job_summary or "Not specified",
             resume_text=truncated_resume,
         )
-        raw = await self._call_with_retry(system, user)
-        return await self._parse_with_retry(
-            ResumeMatchResult, raw, system, user, label="resume_match"
+        text, inp, out = await self._call_with_retry(system, user)
+        result = await self._parse_with_retry(
+            ResumeMatchResult, text, system, user, label="resume_match"
+        )
+        return result, TokenUsage(
+            input_tokens=inp, output_tokens=out, provider="", model=self._model
         )
 
     async def generate_application_email(
@@ -69,7 +86,7 @@ class GeminiProvider(IAIProvider):
         match: ResumeMatchResult,
         candidate_name: str = "",
         profile: UserProfileInfo | None = None,
-    ) -> EmailGenerationResult:
+    ) -> tuple[EmailGenerationResult, TokenUsage]:
         truncated_resume = resume_text[: settings.AI_MAX_RESUME_TOKENS * 4]
         p = profile or UserProfileInfo()
         requested = set(job.required_candidate_info)
@@ -98,15 +115,15 @@ class GeminiProvider(IAIProvider):
             total_experience=_if_requested("total_experience", p.total_experience),
             linkedin_url=p.linkedin_url or "",
         )
-        raw = await self._call_with_retry(system, user)
-        return await self._parse_with_retry(
-            EmailGenerationResult, raw, system, user, label="email_generation"
+        text, inp, out = await self._call_with_retry(system, user)
+        result = await self._parse_with_retry(
+            EmailGenerationResult, text, system, user, label="email_generation"
+        )
+        return result, TokenUsage(
+            input_tokens=inp, output_tokens=out, provider="", model=self._model
         )
 
-    # ── Internal helpers ────────────────────────────────────────────────────────
-
-    async def _call_with_retry(self, system: str, user: str) -> str:
-        """Call Gemini with exponential backoff on transient errors."""
+    async def _call_with_retry(self, system: str, user: str) -> tuple[str, int, int]:
         last_exc: Exception | None = None
         for attempt in range(_RETRY_ATTEMPTS):
             try:
@@ -122,18 +139,31 @@ class GeminiProvider(IAIProvider):
                 text = response.text
                 if not text:
                     raise AIProviderError("Gemini returned an empty response")
-                logger.debug("gemini response received", attempt=attempt, length=len(text))
-                return text
+                meta = response.usage_metadata
+                inp = getattr(meta, "prompt_token_count", 0) or 0
+                out = getattr(meta, "candidates_token_count", 0) or 0
+                logger.debug(
+                    "gemini response received",
+                    attempt=attempt,
+                    length=len(text),
+                    input_tokens=inp,
+                    output_tokens=out,
+                )
+                return text, inp, out
+            except AIRateLimitError:
+                raise
             except AIProviderError:
                 raise
             except Exception as exc:
+                if _is_rate_limit(exc):
+                    raise AIRateLimitError(
+                        f"Gemini rate limit: {exc}",
+                        limit_type=_rate_limit_type(exc),
+                    ) from exc
                 last_exc = exc
                 delay = _RETRY_BASE_DELAY * (2**attempt)
                 logger.warning(
-                    "gemini call failed, retrying",
-                    attempt=attempt,
-                    delay=delay,
-                    error=str(exc),
+                    "gemini call failed, retrying", attempt=attempt, delay=delay, error=str(exc)
                 )
                 await asyncio.sleep(delay)
 
@@ -147,7 +177,6 @@ class GeminiProvider(IAIProvider):
         user: str,
         label: str,
     ) -> M:
-        """Parse JSON; on first failure retry the AI call with a clarification prompt."""
         try:
             return self._parse(model_cls, raw)
         except AIResponseParseError as first_err:
@@ -161,9 +190,9 @@ class GeminiProvider(IAIProvider):
             user + "\n\nYour previous response could not be parsed as valid JSON. "
             "Respond ONLY with the raw JSON object — no markdown, no explanation."
         )
-        raw2 = await self._call_with_retry(system, clarified_user)
+        text2, _, _ = await self._call_with_retry(system, clarified_user)
         try:
-            return self._parse(model_cls, raw2)
+            return self._parse(model_cls, text2)
         except AIResponseParseError as second_err:
             raise AIResponseParseError(
                 f"AI response parse failed after retry [{label}]: {second_err}"
@@ -180,12 +209,6 @@ class GeminiProvider(IAIProvider):
 
 
 def _resolve_recruiter_first_name(name: str | None, _email: str | None) -> str:
-    """Return recruiter first name only when explicitly extracted from the post.
-
-    Email-based inference is intentionally excluded — formats like
-    bansal_ritik@ vs riya.mishra@ are ambiguous and produce wrong names.
-    'Dear Hiring Manager' is safer than a wrong name.
-    """
     if name and name.strip():
         return name.strip().split()[0].capitalize()
     return ""
