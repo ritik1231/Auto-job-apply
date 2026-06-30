@@ -26,6 +26,8 @@ class User(TimestampedBase):
     current_location: Mapped[str | None] = mapped_column(String(255))
     total_experience: Mapped[str | None] = mapped_column(String(100))
     linkedin_url: Mapped[str | None] = mapped_column(String(500))
+    github_url: Mapped[str | None] = mapped_column(String(500))
+    website_url: Mapped[str | None] = mapped_column(String(500))
     daily_quota_override: Mapped[int | None] = mapped_column(sa.Integer(), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(

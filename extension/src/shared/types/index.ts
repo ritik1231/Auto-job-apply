@@ -10,6 +10,8 @@ export interface User {
   current_location?: string | null;
   total_experience?: string | null;
   linkedin_url?: string | null;
+  github_url?: string | null;
+  website_url?: string | null;
 }
 
 export interface UserProfileUpdate {
@@ -19,6 +21,8 @@ export interface UserProfileUpdate {
   current_location?: string | null;
   total_experience?: string | null;
   linkedin_url?: string | null;
+  github_url?: string | null;
+  website_url?: string | null;
 }
 
 export type ApplicationStatus = "draft" | "sent" | "failed";

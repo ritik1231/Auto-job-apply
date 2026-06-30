@@ -9,6 +9,8 @@ interface ProfileData {
   current_location: string;
   total_experience: string;
   linkedin_url: string;
+  github_url: string;
+  website_url: string;
 }
 
 interface ProfileState {
@@ -30,6 +32,8 @@ const EMPTY: ProfileData = {
   current_location: "",
   total_experience: "",
   linkedin_url: "",
+  github_url: "",
+  website_url: "",
 };
 
 export const useProfileStore = create<ProfileState & ProfileActions>((set) => ({
@@ -50,6 +54,8 @@ export const useProfileStore = create<ProfileState & ProfileActions>((set) => ({
           current_location: user.current_location ?? "",
           total_experience: user.total_experience ?? "",
           linkedin_url: user.linkedin_url ?? "",
+          github_url: user.github_url ?? "",
+          website_url: user.website_url ?? "",
         },
         isLoading: false,
       });
@@ -71,6 +77,8 @@ export const useProfileStore = create<ProfileState & ProfileActions>((set) => ({
         current_location: data.current_location || null,
         total_experience: data.total_experience || null,
         linkedin_url: data.linkedin_url || null,
+        github_url: data.github_url || null,
+        website_url: data.website_url || null,
       };
       const user = await apiClient.updateProfile(payload);
       set({
@@ -81,6 +89,8 @@ export const useProfileStore = create<ProfileState & ProfileActions>((set) => ({
           current_location: user.current_location ?? "",
           total_experience: user.total_experience ?? "",
           linkedin_url: user.linkedin_url ?? "",
+          github_url: user.github_url ?? "",
+          website_url: user.website_url ?? "",
         },
         isSaving: false,
       });

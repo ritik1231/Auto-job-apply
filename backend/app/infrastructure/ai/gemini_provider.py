@@ -90,30 +90,23 @@ class GeminiProvider(IAIProvider):
         truncated_resume = resume_text[: settings.AI_MAX_RESUME_TOKENS * 4]
         p = profile or UserProfileInfo()
         requested = set(job.required_candidate_info)
-        required_info = ", ".join(requested) if requested else "none"
-
-        def _if_requested(key: str, value: str | None) -> str:
-            return (value or "Not specified") if key in requested else "Not specified"
 
         system, user = prompt_loader.render(
-            "email_generation_v2",
+            "email_generation_v3",
             job_title=job.job_title or "the role",
             company=job.company or "",
             recruiter_name=_resolve_recruiter_first_name(job.recruiter_name, job.recruiter_email),
             skills=", ".join(job.skills) if job.skills else "Not specified",
             job_summary=job.job_summary or "Not specified",
-            required_candidate_info=required_info,
             match_score=f"{match.match_score:.0%}",
             matching_skills=", ".join(match.matching_skills) if match.matching_skills else "None",
             missing_skills=", ".join(match.missing_skills) if match.missing_skills else "None",
             resume_text=truncated_resume,
             candidate_name=candidate_name,
-            current_ctc=_if_requested("current_ctc", p.current_ctc),
-            expected_ctc=_if_requested("expected_ctc", p.expected_ctc),
-            notice_period=_if_requested("notice_period", p.notice_period),
-            current_location=_if_requested("current_location", p.current_location),
-            total_experience=_if_requested("total_experience", p.total_experience),
+            candidate_profile_section=_build_candidate_profile_section(requested, p),
             linkedin_url=p.linkedin_url or "",
+            github_url=p.github_url or "",
+            website_url=p.website_url or "",
         )
         text, inp, out = await self._call_with_retry(system, user)
         result = await self._parse_with_retry(
@@ -206,6 +199,20 @@ class GeminiProvider(IAIProvider):
             raise AIResponseParseError(f"Invalid JSON in AI response: {exc}") from exc
         except ValidationError as exc:
             raise AIResponseParseError(f"AI response schema mismatch: {exc}") from exc
+
+
+def _build_candidate_profile_section(requested: set[str], p: UserProfileInfo) -> str:
+    if not requested:
+        return ""
+    mapping = [
+        ("total_experience", "Total Experience", p.total_experience),
+        ("notice_period", "Notice Period", p.notice_period),
+        ("current_location", "Current Location", p.current_location),
+        ("current_ctc", "Current CTC", p.current_ctc),
+        ("expected_ctc", "Expected CTC", p.expected_ctc),
+    ]
+    lines = [f"- {label}: {value}" for key, label, value in mapping if key in requested and value]
+    return "\n".join(lines)
 
 
 def _resolve_recruiter_first_name(name: str | None, _email: str | None) -> str:

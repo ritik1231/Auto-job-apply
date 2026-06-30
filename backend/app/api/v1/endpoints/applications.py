@@ -76,6 +76,8 @@ async def prepare_application(
         current_location=current_user.current_location,
         total_experience=current_user.total_experience,
         linkedin_url=current_user.linkedin_url,
+        github_url=current_user.github_url,
+        website_url=current_user.website_url,
     )
     app = await service.prepare_application(
         current_user.id, body.job_post_id, current_user.name or "", profile

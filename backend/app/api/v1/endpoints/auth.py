@@ -67,6 +67,8 @@ class UserResponse(BaseModel):
     current_location: str | None = None
     total_experience: str | None = None
     linkedin_url: str | None = None
+    github_url: str | None = None
+    website_url: str | None = None
 
 
 class UserProfileUpdateRequest(BaseModel):
@@ -76,6 +78,8 @@ class UserProfileUpdateRequest(BaseModel):
     current_location: str | None = None
     total_experience: str | None = None
     linkedin_url: str | None = None
+    github_url: str | None = None
+    website_url: str | None = None
 
 
 ExchangeResponse.model_rebuild()
@@ -149,6 +153,8 @@ def _user_response(user: UserEntity) -> UserResponse:
         current_location=user.current_location,
         total_experience=user.total_experience,
         linkedin_url=user.linkedin_url,
+        github_url=user.github_url,
+        website_url=user.website_url,
     )
 
 

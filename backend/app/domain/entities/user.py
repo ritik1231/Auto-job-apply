@@ -20,6 +20,8 @@ class UserEntity(BaseModel):
     current_location: str | None = None
     total_experience: str | None = None
     linkedin_url: str | None = None
+    github_url: str | None = None
+    website_url: str | None = None
     daily_quota_override: int | None = None
     is_active: bool
     created_at: datetime
